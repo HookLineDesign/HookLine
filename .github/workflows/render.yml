@@ -36,12 +36,11 @@ jobs:
           curl -L "$PREVIEW" -o /tmp/song-preview.m4a
           ffmpeg -y -i /tmp/song-preview.m4a -vn -codec:a libmp3lame -q:a 1 public/song.mp3
 
-      - name: Normalize captured video
+      - name: Verify media
         run: |
           mkdir -p out
-          for stem in sellers1 sellers2 cinematic; do
-            ffmpeg -y -i "public/$stem.webm" -c:v libx264 -preset fast -crf 18 -an "public/$stem.mp4"
-          done
+          ls -lh public
+          for f in public/sellers1.mp4 public/sellers2.mp4 public/cinematic.mp4 public/song.mp3; do test -s "$f"; done
 
       - name: Render vertical edit
         run: npm run render
