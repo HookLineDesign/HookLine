@@ -1,16 +1,22 @@
-name: Render Gamecocks Edit
+name: Publish Gamecocks Footage
 
 on:
   push:
     branches: [main]
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
-  render:
+  capture:
+    if: ${{ !contains(github.event.head_commit.message, 'Store captured Sellers footage') }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - uses: actions/setup-node@v4
         with:
@@ -23,27 +29,20 @@ jobs:
         run: |
           npx playwright install --with-deps chromium
           sudo apt-get update
-          sudo apt-get install -y ffmpeg jq
-
-      - name: Capture BankRollJu song segment
-        run: |
-          mkdir -p public out
-          node capture-song.mjs
+          sudo apt-get install -y ffmpeg
 
       - name: Capture public ESPN Sellers clips
         run: npm run capture
 
-      - name: Verify media
+      - name: Verify captured footage
         run: |
           ls -lh public
-          for f in public/sellers1.mp4 public/sellers2.mp4 public/cinematic.mp4 public/song.mp3; do test -s "$f"; done
+          for f in public/sellers1.mp4 public/sellers2.mp4 public/cinematic.mp4; do test -s "$f"; done
 
-      - name: Render vertical edit
-        run: npm run render
-
-      - uses: actions/upload-artifact@v4
-        with:
-          name: gamecocks-sellers-edit
-          path: out/gamecocks-sellers-edit.mp4
-          if-no-files-found: error
-          retention-days: 7
+      - name: Commit footage into repository
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -f public/sellers1.mp4 public/sellers2.mp4 public/cinematic.mp4
+          git commit -m 'Store captured Sellers footage' || exit 0
+          git push
