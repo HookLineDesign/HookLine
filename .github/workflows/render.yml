@@ -24,24 +24,35 @@ jobs:
         run: |
           python -m pip install --upgrade pip yt-dlp
           sudo apt-get update
-          sudo apt-get install -y ffmpeg
+          sudo apt-get install -y ffmpeg jq
 
-      - name: Download source footage
+      - name: Download SEC source footage
         run: |
           mkdir -p public out
-          yt-dlp --no-playlist --merge-output-format mp4 -S 'res:1080,vcodec:h264' -o 'public/sellers1.%(ext)s' 'https://www.youtube.com/watch?v=Q-ODRlZeAxg'
-          yt-dlp --no-playlist --merge-output-format mp4 -S 'res:1080,vcodec:h264' -o 'public/sellers2.%(ext)s' 'https://www.youtube.com/watch?v=ggrHSsMmLwU'
-          yt-dlp --no-playlist --merge-output-format mp4 -S 'res:1080,vcodec:h264' -o 'public/cinematic.%(ext)s' 'ytsearch1:South Carolina Gamecocks football cinematic Williams Brice entrance'
-          yt-dlp --no-playlist -x --audio-format mp3 --audio-quality 0 -o 'public/song.%(ext)s' 'ytsearch1:BankRollJu LaNorris Sellers'
+          yt-dlp --no-playlist --merge-output-format mp4 -o 'public/sellers1.%(ext)s' 'https://www.secsports.com/videos/2024/11/highlight-sellers-seals-scintillating-south-carolina-win-at-clemson'
+          yt-dlp --no-playlist --merge-output-format mp4 -o 'public/sellers2.%(ext)s' 'https://www.secsports.com/videos/2025/11/highlight-lanorris-sellers-powers-south-carolina-to-win-vs-coastal-carolina'
+          yt-dlp --no-playlist --merge-output-format mp4 -o 'public/cinematic.%(ext)s' 'https://www.secsports.com/videos/2026/09/highlight-south-carolinas-offense-routs-kent-state-with-645-total-yards'
 
-      - name: Normalize filenames
+      - name: Download official Apple Music preview
+        run: |
+          curl -L -s 'https://itunes.apple.com/search?term=BankRollJu%20LaNorris%20Sellers&entity=song&limit=20' -o /tmp/itunes.json
+          PREVIEW=$(jq -r '.results[] | select((.artistName|ascii_downcase)=="bankrollju" and (.trackName|ascii_downcase|contains("lanorris sellers"))) | .previewUrl' /tmp/itunes.json | head -1)
+          test -n "$PREVIEW" && test "$PREVIEW" != "null"
+          curl -L "$PREVIEW" -o /tmp/song-preview.m4a
+          ffmpeg -y -i /tmp/song-preview.m4a -vn -codec:a libmp3lame -q:a 1 public/song.mp3
+
+      - name: Normalize video filenames
         run: |
           for stem in sellers1 sellers2 cinematic; do
             f=$(find public -maxdepth 1 -type f -name "$stem.*" | head -1)
-            [ "$f" = "public/$stem.mp4" ] || ffmpeg -y -i "$f" -c:v libx264 -preset fast -crf 18 -an "public/$stem.mp4"
+            test -n "$f"
+            if [ "$f" != "public/$stem.mp4" ]; then
+              ffmpeg -y -i "$f" -c:v libx264 -preset fast -crf 18 -an "public/$stem.mp4"
+            else
+              ffmpeg -y -i "$f" -c:v libx264 -preset fast -crf 18 -an "public/$stem.tmp.mp4"
+              mv "public/$stem.tmp.mp4" "public/$stem.mp4"
+            fi
           done
-          f=$(find public -maxdepth 1 -type f -name 'song.*' | head -1)
-          [ "$f" = 'public/song.mp3' ] || ffmpeg -y -i "$f" -vn -codec:a libmp3lame -q:a 1 public/song.mp3
 
       - name: Install project
         run: npm install
