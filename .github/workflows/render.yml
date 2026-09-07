@@ -22,27 +22,43 @@ jobs:
 
       - name: Install media tools
         run: |
-          python -m pip install --upgrade pip
+          python -m pip install --upgrade pip yt-dlp
           sudo apt-get update
           sudo apt-get install -y ffmpeg jq
 
-      - name: Inspect SEC embedded player data
+      - name: Download ESPN Sellers clips
         run: |
-          URL='https://www.secsports.com/videos/2024/11/highlight-sellers-seals-scintillating-south-carolina-win-at-clemson'
-          curl -L -sS -A 'Mozilla/5.0' "$URL" -o /tmp/sec.html
-          echo '=== candidate media urls ==='
-          grep -Eo 'https?:[^"'"'"' <>]+(m3u8|mp4)[^"'"'"' <>]*' /tmp/sec.html | sed 's/\\u0026/\&/g' | head -30 || true
-          echo '=== player clues ==='
-          grep -Eoi '.{0,160}(m3u8|mp4|videoId|video_id|playback|mediaId|media_id|espncdn|brightcove|akamai).{0,260}' /tmp/sec.html | head -50 || true
-          echo '=== script/json clues ==='
-          grep -Eoi '<script[^>]*(application/ld\+json|__NEXT_DATA__|type="application/json")[^>]*>[^<]{0,3000}' /tmp/sec.html | head -20 || true
-          exit 1
+          mkdir -p public out
+          yt-dlp --no-playlist --merge-output-format mp4 -o 'public/sellers1.%(ext)s' 'https://www.espn.com/watch/player/_/id/42700754'
+          yt-dlp --no-playlist --merge-output-format mp4 -o 'public/sellers2.%(ext)s' 'https://www.espn.com/video/clip/_/id/42697706'
+          yt-dlp --no-playlist --merge-output-format mp4 -o 'public/cinematic.%(ext)s' 'https://www.espn.com/video/clip/_/id/42159145'
 
-      - name: Download official Apple Music preview
-        if: ${{ false }}
+      - name: Download official Apple preview
         run: |
           curl -L -s 'https://itunes.apple.com/search?term=BankRollJu%20LaNorris%20Sellers&entity=song&limit=20' -o /tmp/itunes.json
           PREVIEW=$(jq -r '.results[] | select((.artistName|ascii_downcase)=="bankrollju" and (.trackName|ascii_downcase|contains("lanorris sellers"))) | .previewUrl' /tmp/itunes.json | head -1)
           test -n "$PREVIEW" && test "$PREVIEW" != "null"
           curl -L "$PREVIEW" -o /tmp/song-preview.m4a
           ffmpeg -y -i /tmp/song-preview.m4a -vn -codec:a libmp3lame -q:a 1 public/song.mp3
+
+      - name: Normalize video files
+        run: |
+          for stem in sellers1 sellers2 cinematic; do
+            f=$(find public -maxdepth 1 -type f -name "$stem.*" | head -1)
+            test -n "$f"
+            ffmpeg -y -i "$f" -c:v libx264 -preset fast -crf 18 -an "public/$stem.normalized.mp4"
+            mv "public/$stem.normalized.mp4" "public/$stem.mp4"
+          done
+
+      - name: Install project
+        run: npm install
+
+      - name: Render vertical edit
+        run: npm run render
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: gamecocks-sellers-edit
+          path: out/gamecocks-sellers-edit.mp4
+          if-no-files-found: error
+          retention-days: 7
