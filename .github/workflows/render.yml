@@ -16,22 +16,17 @@ jobs:
         with:
           node-version: 22
 
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
+      - name: Install project
+        run: npm install
 
-      - name: Install media tools
+      - name: Install browser + media tools
         run: |
-          python -m pip install --upgrade pip yt-dlp
+          npx playwright install --with-deps chromium
           sudo apt-get update
           sudo apt-get install -y ffmpeg jq
 
-      - name: Download ESPN Sellers clips
-        run: |
-          mkdir -p public out
-          yt-dlp --no-playlist --merge-output-format mp4 -o 'public/sellers1.%(ext)s' 'https://www.espn.com/watch/player/_/id/42700754'
-          yt-dlp --no-playlist --merge-output-format mp4 -o 'public/sellers2.%(ext)s' 'https://www.espn.com/video/clip/_/id/42697706'
-          yt-dlp --no-playlist --merge-output-format mp4 -o 'public/cinematic.%(ext)s' 'https://www.espn.com/video/clip/_/id/42159145'
+      - name: Capture public ESPN Sellers clips
+        run: npm run capture
 
       - name: Download official Apple preview
         run: |
@@ -41,17 +36,12 @@ jobs:
           curl -L "$PREVIEW" -o /tmp/song-preview.m4a
           ffmpeg -y -i /tmp/song-preview.m4a -vn -codec:a libmp3lame -q:a 1 public/song.mp3
 
-      - name: Normalize video files
+      - name: Normalize captured video
         run: |
+          mkdir -p out
           for stem in sellers1 sellers2 cinematic; do
-            f=$(find public -maxdepth 1 -type f -name "$stem.*" | head -1)
-            test -n "$f"
-            ffmpeg -y -i "$f" -c:v libx264 -preset fast -crf 18 -an "public/$stem.normalized.mp4"
-            mv "public/$stem.normalized.mp4" "public/$stem.mp4"
+            ffmpeg -y -i "public/$stem.webm" -c:v libx264 -preset fast -crf 18 -an "public/$stem.mp4"
           done
-
-      - name: Install project
-        run: npm install
 
       - name: Render vertical edit
         run: npm run render
