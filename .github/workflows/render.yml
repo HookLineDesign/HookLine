@@ -25,15 +25,10 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y ffmpeg jq
 
-      - name: Download official song preview
+      - name: Capture BankRollJu song segment
         run: |
           mkdir -p public out
-          curl -L -s 'https://itunes.apple.com/lookup?id=1838137017' -o /tmp/song.json
-          cat /tmp/song.json | jq '{resultCount, results: [.results[]? | {artistName,trackName,previewUrl}]}'
-          PREVIEW=$(jq -r '.results[]? | .previewUrl // empty' /tmp/song.json | head -1)
-          test -n "$PREVIEW"
-          curl -L --fail "$PREVIEW" -o /tmp/song-preview.m4a
-          ffmpeg -y -i /tmp/song-preview.m4a -vn -codec:a libmp3lame -q:a 1 public/song.mp3
+          node capture-song.mjs
 
       - name: Capture public ESPN Sellers clips
         run: npm run capture
