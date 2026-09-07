@@ -1,6 +1,6 @@
 import {chromium} from 'playwright';
+import {spawnSync} from 'node:child_process';
 import fs from 'node:fs/promises';
-import path from 'node:path';
 
 const clips = [
   ['sellers1', 'https://www.espn.com/watch/player/_/id/42700754'],
@@ -9,56 +9,74 @@ const clips = [
 ];
 
 await fs.mkdir('public', {recursive: true});
-await fs.mkdir('captures', {recursive: true});
-
 const browser = await chromium.launch({headless: true, args: ['--autoplay-policy=no-user-gesture-required']});
 
-for (const [name, url] of clips) {
+for (const [name, pageUrl] of clips) {
+  console.log(`CAPTURE_START ${name}`);
   const context = await browser.newContext({
     viewport: {width: 1280, height: 720},
-    recordVideo: {dir: 'captures', size: {width: 1280, height: 720}},
     userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/131 Safari/537.36'
   });
   const page = await context.newPage();
-  await page.goto(url, {waitUntil: 'domcontentloaded', timeout: 60000});
-  await page.waitForTimeout(4000);
+  const media = [];
 
-  // Dismiss common consent overlays if present.
+  const maybeAdd = (u) => {
+    if (!u) return;
+    const lower = u.toLowerCase();
+    if (lower.includes('.m3u8') || lower.includes('.mp4')) {
+      if (!media.includes(u)) {
+        media.push(u);
+        console.log(`MEDIA ${name} ${u}`);
+      }
+    }
+  };
+  page.on('request', r => maybeAdd(r.url()));
+  page.on('response', r => maybeAdd(r.url()));
+
+  await page.goto(pageUrl, {waitUntil: 'domcontentloaded', timeout: 45000});
+  await page.waitForTimeout(3500);
+
   for (const text of ['Accept', 'I Accept', 'Agree', 'Continue']) {
     const b = page.getByRole('button', {name: new RegExp(`^${text}$`, 'i')});
-    if (await b.count()) {
-      try { await b.first().click({timeout: 1000}); } catch {}
-    }
+    if (await b.count()) { try { await b.first().click({timeout: 800}); } catch {} }
   }
 
-  const video = page.locator('video').first();
-  await video.waitFor({state: 'attached', timeout: 30000});
-  await page.evaluate(() => {
-    const v = document.querySelector('video');
-    if (!v) return;
-    document.body.innerHTML = '';
-    document.body.style.margin = '0';
-    document.body.style.background = '#000';
-    Object.assign(v.style, {
-      position: 'fixed', inset: '0', width: '100vw', height: '100vh', objectFit: 'contain', background: '#000', zIndex: '999999'
-    });
-    document.body.appendChild(v);
-  });
+  // Try to start any player, including players nested in iframes.
+  for (const frame of page.frames()) {
+    try {
+      await frame.evaluate(() => {
+        const videos = Array.from(document.querySelectorAll('video'));
+        for (const v of videos) {
+          v.muted = true;
+          try { v.currentTime = 0; } catch {}
+          Promise.race([v.play(), new Promise(r => setTimeout(r, 1500))]).catch(() => {});
+        }
+        for (const el of Array.from(document.querySelectorAll('button,[role="button"]'))) {
+          const label = `${el.getAttribute('aria-label') || ''} ${el.textContent || ''}`.toLowerCase();
+          if (label.includes('play')) { try { el.click(); } catch {} }
+        }
+      });
+    } catch {}
+  }
 
-  await page.evaluate(async () => {
-    const v = document.querySelector('video');
-    if (v) {
-      v.muted = true;
-      try { v.currentTime = 0; } catch {}
-      try { await v.play(); } catch {}
-    }
-  });
+  await page.waitForTimeout(9000);
 
-  await page.waitForTimeout(11000);
-  const pv = page.video();
+  const chosen = media.find(u => u.toLowerCase().includes('.m3u8')) || media.find(u => u.toLowerCase().includes('.mp4'));
+  if (!chosen) {
+    console.log(`NO_MEDIA_URL ${name}`);
+    await context.close();
+    throw new Error(`No playable media request found for ${name}`);
+  }
+
+  const cookies = await context.cookies();
+  const cookieHeader = cookies.map(c => `${c.name}=${c.value}`).join('; ');
+  const headers = `Referer: ${pageUrl}\r\nUser-Agent: Mozilla/5.0\r\n${cookieHeader ? `Cookie: ${cookieHeader}\r\n` : ''}`;
+  const out = `public/${name}.mp4`;
+  const args = ['-y', '-headers', headers, '-i', chosen, '-t', '12', '-c:v', 'libx264', '-preset', 'fast', '-crf', '18', '-an', out];
+  const res = spawnSync('ffmpeg', args, {stdio: 'inherit'});
   await context.close();
-  const recorded = await pv.path();
-  await fs.copyFile(recorded, path.join('public', `${name}.webm`));
+  if (res.status !== 0) throw new Error(`ffmpeg failed for ${name}`);
+  console.log(`CAPTURE_OK ${name}`);
 }
 
 await browser.close();
