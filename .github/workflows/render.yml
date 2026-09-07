@@ -1,0 +1,58 @@
+name: Render Gamecocks Edit
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  render:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install media tools
+        run: |
+          python -m pip install --upgrade pip yt-dlp
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg
+
+      - name: Download source footage
+        run: |
+          mkdir -p public out
+          yt-dlp --no-playlist --merge-output-format mp4 -S 'res:1080,vcodec:h264' -o 'public/sellers1.%(ext)s' 'https://www.youtube.com/watch?v=Q-ODRlZeAxg'
+          yt-dlp --no-playlist --merge-output-format mp4 -S 'res:1080,vcodec:h264' -o 'public/sellers2.%(ext)s' 'https://www.youtube.com/watch?v=ggrHSsMmLwU'
+          yt-dlp --no-playlist --merge-output-format mp4 -S 'res:1080,vcodec:h264' -o 'public/cinematic.%(ext)s' 'ytsearch1:South Carolina Gamecocks football cinematic Williams Brice entrance'
+          yt-dlp --no-playlist -x --audio-format mp3 --audio-quality 0 -o 'public/song.%(ext)s' 'ytsearch1:BankRollJu LaNorris Sellers'
+
+      - name: Normalize filenames
+        run: |
+          for stem in sellers1 sellers2 cinematic; do
+            f=$(find public -maxdepth 1 -type f -name "$stem.*" | head -1)
+            [ "$f" = "public/$stem.mp4" ] || ffmpeg -y -i "$f" -c:v libx264 -preset fast -crf 18 -an "public/$stem.mp4"
+          done
+          f=$(find public -maxdepth 1 -type f -name 'song.*' | head -1)
+          [ "$f" = 'public/song.mp3' ] || ffmpeg -y -i "$f" -vn -codec:a libmp3lame -q:a 1 public/song.mp3
+
+      - name: Install project
+        run: npm install
+
+      - name: Render vertical edit
+        run: npm run render
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: gamecocks-sellers-edit
+          path: out/gamecocks-sellers-edit.mp4
+          if-no-files-found: error
+          retention-days: 7
