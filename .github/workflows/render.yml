@@ -25,11 +25,9 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y ffmpeg jq
 
-      - name: Capture public ESPN Sellers clips
-        run: npm run capture
-
       - name: Download official song preview
         run: |
+          mkdir -p public out
           curl -L -s 'https://itunes.apple.com/lookup?id=1838137017' -o /tmp/song.json
           cat /tmp/song.json | jq '{resultCount, results: [.results[]? | {artistName,trackName,previewUrl}]}'
           PREVIEW=$(jq -r '.results[]? | .previewUrl // empty' /tmp/song.json | head -1)
@@ -37,9 +35,11 @@ jobs:
           curl -L --fail "$PREVIEW" -o /tmp/song-preview.m4a
           ffmpeg -y -i /tmp/song-preview.m4a -vn -codec:a libmp3lame -q:a 1 public/song.mp3
 
+      - name: Capture public ESPN Sellers clips
+        run: npm run capture
+
       - name: Verify media
         run: |
-          mkdir -p out
           ls -lh public
           for f in public/sellers1.mp4 public/sellers2.mp4 public/cinematic.mp4 public/song.mp3; do test -s "$f"; done
 
