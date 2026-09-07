@@ -28,12 +28,13 @@ jobs:
       - name: Capture public ESPN Sellers clips
         run: npm run capture
 
-      - name: Download official Apple preview
+      - name: Download official song preview
         run: |
-          curl -L -s 'https://itunes.apple.com/search?term=BankRollJu%20LaNorris%20Sellers&entity=song&limit=20' -o /tmp/itunes.json
-          PREVIEW=$(jq -r '.results[] | select((.artistName|ascii_downcase)=="bankrollju" and (.trackName|ascii_downcase|contains("lanorris sellers"))) | .previewUrl' /tmp/itunes.json | head -1)
-          test -n "$PREVIEW" && test "$PREVIEW" != "null"
-          curl -L "$PREVIEW" -o /tmp/song-preview.m4a
+          curl -L -s 'https://itunes.apple.com/lookup?id=1838137017' -o /tmp/song.json
+          cat /tmp/song.json | jq '{resultCount, results: [.results[]? | {artistName,trackName,previewUrl}]}'
+          PREVIEW=$(jq -r '.results[]? | .previewUrl // empty' /tmp/song.json | head -1)
+          test -n "$PREVIEW"
+          curl -L --fail "$PREVIEW" -o /tmp/song-preview.m4a
           ffmpeg -y -i /tmp/song-preview.m4a -vn -codec:a libmp3lame -q:a 1 public/song.mp3
 
       - name: Verify media
