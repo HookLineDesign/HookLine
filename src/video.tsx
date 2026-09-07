@@ -68,13 +68,13 @@ export const GamecocksEdit: React.FC = () => {
         </AbsoluteFill>
       </Sequence>
 
-      <Sequence from={88} durationInFrames={120}><Clip src="sellers1.mp4" trim={300} duration={120} zoom={1.28} speed={1.08}/></Sequence>
-      <Sequence from={208} durationInFrames={122}><Clip src="sellers1.mp4" trim={870} duration={122} zoom={1.34} x={-20} speed={1.18}/></Sequence>
-      <Sequence from={330} durationInFrames={120}><Clip src="sellers2.mp4" trim={1320} duration={120} zoom={1.24} x={25} speed={1.12}/></Sequence>
-      <Sequence from={450} durationInFrames={120}><Clip src="cinematic.mp4" trim={450} duration={120} zoom={1.3} speed={1.04}/></Sequence>
-      <Sequence from={570} durationInFrames={120}><Clip src="sellers1.mp4" trim={2250} duration={120} zoom={1.36} x={-25} speed={1.2}/></Sequence>
-      <Sequence from={690} durationInFrames={120}><Clip src="sellers2.mp4" trim={3180} duration={120} zoom={1.3} x={15} speed={1.16}/></Sequence>
-      <Sequence from={810} durationInFrames={60}><Clip src="sellers1.mp4" trim={5100} duration={60} zoom={1.42} speed={1.02}/></Sequence>
+      <Sequence from={88} durationInFrames={120}><Clip src="sellers1.mp4" trim={0} duration={120} zoom={1.28} speed={1.08}/></Sequence>
+      <Sequence from={208} durationInFrames={122}><Clip src="sellers1.mp4" trim={120} duration={122} zoom={1.34} x={-20} speed={1.18}/></Sequence>
+      <Sequence from={330} durationInFrames={120}><Clip src="sellers2.mp4" trim={0} duration={120} zoom={1.24} x={25} speed={1.12}/></Sequence>
+      <Sequence from={450} durationInFrames={120}><Clip src="cinematic.mp4" trim={0} duration={120} zoom={1.3} speed={1.04}/></Sequence>
+      <Sequence from={570} durationInFrames={120}><Clip src="sellers1.mp4" trim={45} duration={120} zoom={1.36} x={-25} speed={1.2}/></Sequence>
+      <Sequence from={690} durationInFrames={120}><Clip src="sellers2.mp4" trim={120} duration={120} zoom={1.3} x={15} speed={1.16}/></Sequence>
+      <Sequence from={810} durationInFrames={60}><Clip src="cinematic.mp4" trim={60} duration={60} zoom={1.42} speed={1.02}/></Sequence>
 
       <BigType top="LANORRIS" bottom="SELLERS" from={95} to={150}/>
       <BigType top="BUILT" bottom="DIFFERENT" from={470} to={525}/>
