@@ -10,39 +10,33 @@ permissions:
 
 jobs:
   capture:
-    if: ${{ !contains(github.event.head_commit.message, 'Store captured Sellers footage') }}
+    if: ${{ !contains(github.event.head_commit.message, 'Store premium Sellers footage') }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-
       - name: Install project
         run: npm install
-
       - name: Install browser + media tools
         run: |
           npx playwright install --with-deps chromium
           sudo apt-get update
           sudo apt-get install -y ffmpeg
-
-      - name: Capture public ESPN Sellers clips
+      - name: Capture premium Sellers pool
         run: npm run capture
-
-      - name: Verify captured footage
+      - name: Verify footage
         run: |
-          ls -lh public
-          for f in public/sellers1.mp4 public/sellers2.mp4 public/cinematic.mp4; do test -s "$f"; done
-
-      - name: Commit footage into repository
+          ls -lh public/premium
+          for f in public/premium/clemson.mp4 public/premium/kentstate.mp4 public/premium/coastal.mp4 public/premium/odu.mp4 public/premium/escape.mp4 public/premium/hurdle.mp4; do test -s "$f"; done
+      - name: Commit footage
         run: |
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add -f public/sellers1.mp4 public/sellers2.mp4 public/cinematic.mp4
-          git commit -m 'Store captured Sellers footage' || exit 0
+          git add -f public/premium/*.mp4
+          git commit -m 'Store premium Sellers footage' || exit 0
           git push
