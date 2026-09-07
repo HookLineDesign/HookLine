@@ -1,13 +1,10 @@
 name: Publish Gamecocks Footage
-
 on:
   push:
     branches: [main]
   workflow_dispatch:
-
 permissions:
   contents: write
-
 jobs:
   capture:
     if: ${{ !contains(github.event.head_commit.message, 'Store premium Sellers footage') }}
@@ -20,19 +17,17 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - name: Install project
-        run: npm install
-      - name: Install browser + media tools
+      - name: Install media tools
         run: |
-          npx playwright install --with-deps chromium
           sudo apt-get update
-          sudo apt-get install -y ffmpeg
+          sudo apt-get install -y ffmpeg python3-pip
+          python3 -m pip install --break-system-packages -U yt-dlp
       - name: Capture premium Sellers pool
         run: npm run capture
       - name: Verify footage
         run: |
           ls -lh public/premium
-          for f in public/premium/clemson.mp4 public/premium/kentstate.mp4 public/premium/coastal.mp4 public/premium/odu.mp4 public/premium/escape.mp4 public/premium/hurdle.mp4; do test -s "$f"; done
+          for f in public/premium/run_it_back.mp4 public/premium/highlights_2024.mp4 public/premium/highlights_2025.mp4; do test -s "$f"; done
       - name: Commit footage
         run: |
           git config user.name 'github-actions[bot]'
